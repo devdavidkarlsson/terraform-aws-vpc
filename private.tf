@@ -1,19 +1,19 @@
 /*
   Database Servers
 */
-resource "aws_security_group" "db" {
-    name = "vpc_db"
+resource "aws_security_group" "trusted_zone" {
+    name = "vpc_trusted_zone"
     description = "Allow incoming database connections."
 
-    ingress { # SQL Server
-        from_port = 1433
-        to_port = 1433
+    ingress { # redis
+        from_port = 6379
+        to_port = 6379
         protocol = "tcp"
         security_groups = ["${aws_security_group.web.id}"]
     }
-    ingress { # MySQL
-        from_port = 3306
-        to_port = 3306
+    ingress { # postres
+        from_port = 51270
+        to_port = 51270
         protocol = "tcp"
         security_groups = ["${aws_security_group.web.id}"]
     }
@@ -47,20 +47,29 @@ resource "aws_security_group" "db" {
     vpc_id = "${aws_vpc.default.id}"
 
     tags {
-        Name = "DBServerSG"
+        Name = "TrustedZoneSG"
     }
 }
 
-resource "aws_instance" "db-1" {
-    ami = "${lookup(var.amis, var.aws_region)}"
-    availability_zone = "eu-west-1a"
-    instance_type = "m1.small"
-    key_name = "${var.aws_key_name}"
-    vpc_security_group_ids = ["${aws_security_group.db.id}"]
-    subnet_id = "${aws_subnet.eu-west-1a-private.id}"
-    source_dest_check = false
-
-    tags {
-        Name = "DB Server 1"
-    }
+resource "aws_db_instance" "auth_db_1" {
+  depends_on             = ["aws_security_group.trusted_zone"]
+  allocated_storage      = 5
+  engine                 = "postgres"
+  engine_version         = "9.3.3"
+  instance_class         = "db.t2.micro"
+  name                   = "databasename"
+  username               = "ddd"
+  password               = "daviddaviddavid"
+  vpc_security_group_ids = ["${aws_security_group.trusted_zone.id}"]
+  db_subnet_group_name   = "${aws_db_subnet_group.default.id}"
+  tags {
+    Name = "DB Server 1"
+  }
 }
+
+resource "aws_db_subnet_group" "default" {
+  name        = "main_subnet_group"
+  description = "Our main group of subnets"
+  subnet_ids  = ["${aws_subnet.eu-west-1a-private.id}", "${aws_subnet.eu-west-1a-public.id}"]
+}
+

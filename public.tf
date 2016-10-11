@@ -24,15 +24,15 @@ resource "aws_security_group" "web" {
         cidr_blocks = ["0.0.0.0/0"]
     }
 
-    egress { # SQL Server
-        from_port = 1433
-        to_port = 1433
+    egress { # redis
+        from_port = 6379
+        to_port = 6379
         protocol = "tcp"
         cidr_blocks = ["${var.private_subnet_cidr}"]
     }
-    egress { # MySQL
-        from_port = 3306
-        to_port = 3306
+    egress { # postgres
+        from_port = 51270
+        to_port = 51270
         protocol = "tcp"
         cidr_blocks = ["${var.private_subnet_cidr}"]
     }
@@ -40,14 +40,14 @@ resource "aws_security_group" "web" {
     vpc_id = "${aws_vpc.default.id}"
 
     tags {
-        Name = "WebServerSG"
+        Name = "AuthProxySG"
     }
 }
 
-resource "aws_instance" "web-1" {
-    ami = "${lookup(var.amis, var.aws_region)}"
+resource "aws_instance" "auth-proxy-1" {
+    ami = "ami-228c3755"
     availability_zone = "eu-west-1a"
-    instance_type = "m1.small"
+    instance_type = "t2.nano"
     key_name = "${var.aws_key_name}"
     vpc_security_group_ids = ["${aws_security_group.web.id}"]
     subnet_id = "${aws_subnet.eu-west-1a-public.id}"
@@ -59,7 +59,7 @@ resource "aws_instance" "web-1" {
     }
 }
 
-resource "aws_eip" "web-1" {
-    instance = "${aws_instance.web-1.id}"
+resource "aws_eip" "auth-proxy-1" {
+    instance = "${aws_instance.auth-proxy-1.id}"
     vpc = true
 }
